@@ -61,36 +61,67 @@ const createUser = (req, res) => {
   }
 };
 // update user
-const updateUser = async (req, res) => {
-  try {
-    const id = req.params.id;
-    const userExist = await User.findOne({ _id: id });
-
-    if (!userExist) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(id, req.body, {
-      new: true,
-    });
-    res.status(200).json(updatedUser);
-  } catch (error) {
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-// Delete user
-const deleteUser = async (req, res) => {
+const updateUser = (req, res) => {
   try {
     const users = readUsers();
-    const id = req.params.id;
-    const userExist = await users.findById({ id });
-    if (!userExist) {
-      return res.status(404).json({ message: "User not found." });
+    const userId = parseInt(req.params.id);
+    const userIndex = users.findIndex((u) => u.id === userId);
+
+    if (userIndex === -1) {
+      return res.status(404).json({ error: "User not found" });
     }
-    await users.findByIdAndUpdate(id);
-    res.status(200).json({ message: "User deleted successfully" });
+
+    const { name, email } = req.body;
+
+    // Validate required fields
+    if (!name || !email) {
+      return res.status(400).json({ error: "Name and email are required" });
+    }
+
+    // Check if email already exists (excluding current user)
+    const existingUser = users.find(
+      (u) => u.email === email && u.id !== userId
+    );
+    if (existingUser) {
+      return res.status(400).json({ error: "Email already exists" });
+    }
+
+    // Update user
+    users[userIndex] = {
+      ...users[userIndex],
+      name,
+      email,
+    };
+
+    // Write to file
+    writeUsers(users);
+
+    res.json(users[userIndex]);
   } catch (error) {
-    return res.status(500).json({ error: "Failed to delete user" });
+    res.status(500).json({ error: "Failed to update user" });
+  }
+};
+
+// Delete user
+const deleteUser = (req, res) => {
+  try {
+    const users = readUsers();
+    const userId = parseInt(req.params.id);
+    const userIndex = users.findIndex((u) => u.id === userId);
+
+    if (userIndex === -1) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Remove user from array
+    users.splice(userIndex, 1);
+
+    // Write to file
+    writeUsers(users);
+
+    res.json({ message: "User deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete user" });
   }
 };
 
